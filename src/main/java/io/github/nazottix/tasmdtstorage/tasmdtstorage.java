@@ -2,6 +2,7 @@ package io.github.nazottix.tasmdtstorage;
 
 import com.mojang.logging.LogUtils;
 import io.github.nazottix.tasmdtstorage.item.StorageTalismanItem;
+import io.github.nazottix.tasmdtstorage.item.TalismanItemHandler;
 import io.github.nazottix.tasmdtstorage.network.SetInventoryAutoInsertPayload;
 import io.github.nazottix.tasmdtstorage.network.StorageBlockTransferPayload;
 import io.github.nazottix.tasmdtstorage.recipe.StorageTalismanRecipe;
@@ -18,6 +19,8 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -56,6 +59,7 @@ public class tasmdtstorage {
 
         modEventBus.addListener(this::addCreative);
         modEventBus.addListener(this::registerPayloadHandlers);
+        modEventBus.addListener(this::registerCapabilities);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
@@ -76,6 +80,14 @@ public class tasmdtstorage {
                 SetInventoryAutoInsertPayload.TYPE,
                 SetInventoryAutoInsertPayload.STREAM_CODEC,
                 SetInventoryAutoInsertPayload::handle
+        );
+    }
+
+    private void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerItem(
+                Capabilities.ItemHandler.ITEM,
+                (stack, context) -> new TalismanItemHandler(stack),
+                STORAGE_TALISMAN_ITEM.get()
         );
     }
 }

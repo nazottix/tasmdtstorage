@@ -35,7 +35,7 @@ public class StorageTalismanRecipe extends CustomRecipe {
         Mode mode = getMode(input);
         if (mode == Mode.INSERT) {
             ItemStack other = findFirstNonTalisman(input);
-            StorageTalismanItem.insert(result, other);
+            StorageTalismanItem.insert(result, other.copyWithCount(1));
         } else if (mode == Mode.UPGRADE) {
             StorageTalismanItem.upgrade(result);
         }

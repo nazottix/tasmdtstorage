@@ -6,15 +6,19 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 
 public class StorageTalismanItem extends Item {
     private static final String KEY_STORED_ITEM = "stored_item";
@@ -73,17 +77,96 @@ public class StorageTalismanItem extends Item {
     public InteractionResult useOn(UseOnContext context) {
         ItemStack talisman = context.getItemInHand();
         Item storedItem = getStoredItem(talisman);
-        if (!(storedItem instanceof BlockItem blockItem) || getStoredCount(talisman) <= 0) {
+        Player player = context.getPlayer();
+        if (storedItem == null || getStoredCount(talisman) <= 0 || player == null) {
             return InteractionResult.PASS;
         }
 
-        BlockPlaceContext placeContext = new BlockPlaceContext(context);
-        InteractionResult result = blockItem.place(placeContext);
-        if (result.consumesAction()) {
-            setStoredCount(talisman, getStoredCount(talisman) - 1);
-            return result;
+        ItemStack proxyStack = new ItemStack(storedItem, 1);
+        BlockHitResult hit = new BlockHitResult(context.getClickLocation(), context.getClickedFace(), context.getClickedPos(), context.isInside());
+        UseOnContext proxyContext = new UseOnContext(context.getLevel(), player, context.getHand(), proxyStack, hit);
+        InteractionResult result = storedItem.useOn(proxyContext);
+        int consumed = 1 - proxyStack.getCount();
+        if (result.consumesAction() && consumed > 0) {
+            setStoredCount(talisman, getStoredCount(talisman) - consumed);
         }
-        return InteractionResult.PASS;
+        return result;
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
+        ItemStack talisman = player.getItemInHand(usedHand);
+        Item storedItem = getStoredItem(talisman);
+        if (storedItem == null || getStoredCount(talisman) <= 0) {
+            return InteractionResultHolder.pass(talisman);
+        }
+
+        ItemStack proxyStack = new ItemStack(storedItem, 1);
+        if (proxyStack.getFoodProperties(player) != null) {
+            if (!player.canEat(proxyStack.getFoodProperties(player).canAlwaysEat())) {
+                return InteractionResultHolder.fail(talisman);
+            }
+            return ItemUtils.startUsingInstantly(level, player, usedHand);
+        }
+
+        InteractionResultHolder<ItemStack> result = storedItem.use(level, player, usedHand);
+        int consumed = 1 - result.getObject().getCount();
+        if (!level.isClientSide && result.getResult().consumesAction() && consumed > 0) {
+            setStoredCount(talisman, getStoredCount(talisman) - consumed);
+            if (!result.getObject().isEmpty() && result.getObject().getItem() != storedItem && !player.getInventory().add(result.getObject())) {
+                player.drop(result.getObject(), false);
+            }
+        }
+
+        return result.getResult().consumesAction()
+                ? new InteractionResultHolder<>(result.getResult(), talisman)
+                : InteractionResultHolder.pass(talisman);
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+        Item stored = getStoredItem(stack);
+        if (stored != null) {
+            ItemStack proxy = new ItemStack(stored, 1);
+            if (proxy.getFoodProperties(entity) != null) {
+                return proxy.getUseDuration(entity);
+            }
+        }
+        return super.getUseDuration(stack, entity);
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        Item stored = getStoredItem(stack);
+        if (stored != null) {
+            ItemStack proxy = new ItemStack(stored, 1);
+            if (proxy.getFoodProperties(null) != null) {
+                return proxy.getUseAnimation();
+            }
+        }
+        return super.getUseAnimation(stack);
+    }
+
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity livingEntity) {
+        Item stored = getStoredItem(stack);
+        if (stored == null || getStoredCount(stack) <= 0) {
+            return stack;
+        }
+
+        ItemStack proxy = new ItemStack(stored, 1);
+        if (proxy.getFoodProperties(livingEntity) == null) {
+            return stack;
+        }
+
+        ItemStack remainder = proxy.finishUsingItem(level, livingEntity);
+        if (!level.isClientSide) {
+            extractAmount(stack, 1);
+            if (!remainder.isEmpty() && remainder.getItem() != stored && livingEntity instanceof Player player && !player.getInventory().add(remainder)) {
+                player.drop(remainder, false);
+            }
+        }
+        return stack;
     }
 
     public static boolean hasAnyTalisman(Player player) {
@@ -152,6 +235,21 @@ public class StorageTalismanItem extends Item {
             }
         }
         return movedTotal;
+    }
+
+    public static int extractAmount(ItemStack talisman, int amount) {
+        int extracted = Math.min(Math.max(0, amount), getStoredCount(talisman));
+        if (extracted > 0) {
+            setStoredCount(talisman, getStoredCount(talisman) - extracted);
+        }
+        return extracted;
+    }
+
+    public static void clearStored(ItemStack talisman) {
+        CompoundTag tag = getOrCreateTag(talisman);
+        tag.remove(KEY_STORED_ITEM);
+        tag.putInt(KEY_STORED_COUNT, 0);
+        setTag(talisman, tag);
     }
 
     private static int moveItemToContainer(Container container, Item item, int amount) {
