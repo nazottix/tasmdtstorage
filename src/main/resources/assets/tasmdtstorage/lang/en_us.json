@@ -1,13 +1,11 @@
 {
-  "itemGroup.tasmdtstorage": "Example Mod Tab",
-  "block.tasmdtstorage.example_block": "Example Block",
-  "item.tasmdtstorage.example_item": "Example Item",
-
-  "tasmdtstorage.configuration.title": "tasmdtstorage Configs",
-  "tasmdtstorage.configuration.section.tasmdtstorage.common.toml": "tasmdtstorage Configs",
-  "tasmdtstorage.configuration.section.tasmdtstorage.common.toml.title": "tasmdtstorage Configs",
-  "tasmdtstorage.configuration.items": "Item List",
-  "tasmdtstorage.configuration.logDirtBlock": "Log Dirt Block",
-  "tasmdtstorage.configuration.magicNumberIntroduction": "Magic Number Text",
-  "tasmdtstorage.configuration.magicNumber": "Magic Number"
+  "itemGroup.tasmdtstorage": "TASMDT Storage",
+  "item.tasmdtstorage.storage_talisman": "Storage Talisman",
+  "item.tasmdtstorage.storage_talisman.unbound": "Unbound",
+  "item.tasmdtstorage.storage_talisman.bound": "Bound: %s",
+  "item.tasmdtstorage.storage_talisman.stored": "Stored: %s / %s",
+  "config.tasmdtstorage.logDirtBlock": "Log dirt block",
+  "config.tasmdtstorage.magicNumber": "Magic number",
+  "config.tasmdtstorage.magicNumberIntroduction": "Magic number intro",
+  "config.tasmdtstorage.items": "Items"
 }
