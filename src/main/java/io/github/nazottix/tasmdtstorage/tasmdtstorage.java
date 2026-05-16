@@ -2,6 +2,8 @@ package io.github.nazottix.tasmdtstorage;
 
 import com.mojang.logging.LogUtils;
 import io.github.nazottix.tasmdtstorage.item.StorageTalismanItem;
+import io.github.nazottix.tasmdtstorage.network.SetInventoryAutoInsertPayload;
+import io.github.nazottix.tasmdtstorage.network.StorageBlockTransferPayload;
 import io.github.nazottix.tasmdtstorage.recipe.StorageTalismanRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -9,7 +11,6 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.neoforged.bus.api.IEventBus;
@@ -17,6 +18,8 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -52,6 +55,7 @@ public class tasmdtstorage {
         RECIPE_SERIALIZERS.register(modEventBus);
 
         modEventBus.addListener(this::addCreative);
+        modEventBus.addListener(this::registerPayloadHandlers);
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 
@@ -59,5 +63,19 @@ public class tasmdtstorage {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(STORAGE_TALISMAN_ITEM);
         }
+    }
+
+    private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToServer(
+                StorageBlockTransferPayload.TYPE,
+                StorageBlockTransferPayload.STREAM_CODEC,
+                StorageBlockTransferPayload::handle
+        );
+        registrar.playToServer(
+                SetInventoryAutoInsertPayload.TYPE,
+                SetInventoryAutoInsertPayload.STREAM_CODEC,
+                SetInventoryAutoInsertPayload::handle
+        );
     }
 }

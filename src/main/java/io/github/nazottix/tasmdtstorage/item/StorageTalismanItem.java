@@ -1,10 +1,11 @@
 package io.github.nazottix.tasmdtstorage.item;
 
-import io.github.nazottix.tasmdtstorage.tasmdtstorage;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.Container;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -19,6 +20,7 @@ public class StorageTalismanItem extends Item {
     private static final String KEY_STORED_ITEM = "stored_item";
     private static final String KEY_STORED_COUNT = "stored_count";
     private static final String KEY_MAX_STACKS = "max_stacks";
+    private static final String KEY_AUTO_INSERT_ENABLED = "tasmdtstorage_inventory_auto_insert_enabled";
 
     public static final int DEFAULT_MAX_STACKS = 32;
     public static final int UPGRADE_STACKS = 16;
@@ -29,7 +31,7 @@ public class StorageTalismanItem extends Item {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, net.minecraft.world.entity.Entity entity, int slotId, boolean isSelected) {
-        if (level.isClientSide || !(entity instanceof Player player)) {
+        if (level.isClientSide || !(entity instanceof Player player) || !isInventoryAutoInsertEnabled(player)) {
             return;
         }
 
@@ -59,6 +61,15 @@ public class StorageTalismanItem extends Item {
     }
 
     @Override
+    public Component getName(ItemStack stack) {
+        Item stored = getStoredItem(stack);
+        if (stored == null) {
+            return super.getName(stack);
+        }
+        return Component.translatable("item.tasmdtstorage.storage_talisman.named", stored.getDescription());
+    }
+
+    @Override
     public InteractionResult useOn(UseOnContext context) {
         ItemStack talisman = context.getItemInHand();
         Item storedItem = getStoredItem(talisman);
@@ -66,7 +77,6 @@ public class StorageTalismanItem extends Item {
             return InteractionResult.PASS;
         }
 
-        ItemStack placeStack = new ItemStack(storedItem);
         BlockPlaceContext placeContext = new BlockPlaceContext(context);
         InteractionResult result = blockItem.place(placeContext);
         if (result.consumesAction()) {
@@ -76,8 +86,109 @@ public class StorageTalismanItem extends Item {
         return InteractionResult.PASS;
     }
 
-    public static boolean isBound(ItemStack talisman) {
-        return getStoredItem(talisman) != null;
+    public static boolean hasAnyTalisman(Player player) {
+        for (ItemStack stack : player.getInventory().items) {
+            if (!stack.isEmpty() && stack.getItem() instanceof StorageTalismanItem) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean isHoldingTalisman(Player player) {
+        return player.getMainHandItem().getItem() instanceof StorageTalismanItem
+                || player.getOffhandItem().getItem() instanceof StorageTalismanItem;
+    }
+
+    public static boolean isInventoryAutoInsertEnabled(Player player) {
+        if (!player.getPersistentData().contains(KEY_AUTO_INSERT_ENABLED)) {
+            return true;
+        }
+        return player.getPersistentData().getBoolean(KEY_AUTO_INSERT_ENABLED);
+    }
+
+    public static void setInventoryAutoInsertEnabled(Player player, boolean enabled) {
+        player.getPersistentData().putBoolean(KEY_AUTO_INSERT_ENABLED, enabled);
+    }
+
+    public static int insertIntoAnyTalisman(Player player, ItemStack source) {
+        if (source.isEmpty()) {
+            return 0;
+        }
+
+        int total = 0;
+        for (ItemStack candidate : player.getInventory().items) {
+            if (!candidate.isEmpty() && candidate.getItem() instanceof StorageTalismanItem) {
+                int inserted = insert(candidate, source);
+                if (inserted > 0) {
+                    source.shrink(inserted);
+                    total += inserted;
+                    if (source.isEmpty()) {
+                        break;
+                    }
+                }
+            }
+        }
+        return total;
+    }
+
+    public static int extractFromAnyTalismanToContainer(Player player, Container container) {
+        int movedTotal = 0;
+        for (ItemStack talisman : player.getInventory().items) {
+            if (talisman.isEmpty() || !(talisman.getItem() instanceof StorageTalismanItem)) {
+                continue;
+            }
+
+            Item stored = getStoredItem(talisman);
+            int storedCount = getStoredCount(talisman);
+            if (stored == null || storedCount <= 0) {
+                continue;
+            }
+
+            int moved = moveItemToContainer(container, stored, storedCount);
+            if (moved > 0) {
+                setStoredCount(talisman, storedCount - moved);
+                movedTotal += moved;
+            }
+        }
+        return movedTotal;
+    }
+
+    private static int moveItemToContainer(Container container, Item item, int amount) {
+        int remaining = amount;
+
+        for (int i = 0; i < container.getContainerSize() && remaining > 0; i++) {
+            ItemStack slotStack = container.getItem(i);
+            if (slotStack.isEmpty() || slotStack.getItem() != item) {
+                continue;
+            }
+
+            int slotLimit = Math.min(container.getMaxStackSize(), slotStack.getMaxStackSize());
+            int canMove = Math.min(remaining, slotLimit - slotStack.getCount());
+            if (canMove > 0) {
+                slotStack.grow(canMove);
+                remaining -= canMove;
+            }
+        }
+
+        for (int i = 0; i < container.getContainerSize() && remaining > 0; i++) {
+            ItemStack slotStack = container.getItem(i);
+            if (!slotStack.isEmpty()) {
+                continue;
+            }
+            if (!container.canPlaceItem(i, new ItemStack(item))) {
+                continue;
+            }
+
+            int move = Math.min(remaining, Math.min(container.getMaxStackSize(), item.getDefaultMaxStackSize()));
+            container.setItem(i, new ItemStack(item, move));
+            remaining -= move;
+        }
+
+        if (remaining < amount) {
+            container.setChanged();
+        }
+        return amount - remaining;
     }
 
     public static Item getStoredItem(ItemStack talisman) {
@@ -105,12 +216,6 @@ public class StorageTalismanItem extends Item {
 
     public static void upgrade(ItemStack talisman) {
         setMaxStacks(talisman, getMaxStacks(talisman) + UPGRADE_STACKS);
-    }
-
-    public static void setMaxStacks(ItemStack talisman, int value) {
-        CompoundTag tag = getOrCreateTag(talisman);
-        tag.putInt(KEY_MAX_STACKS, Math.max(1, value));
-        setTag(talisman, tag);
     }
 
     public static int extractOneStack(ItemStack talisman) {
@@ -158,6 +263,12 @@ public class StorageTalismanItem extends Item {
 
     public static int getCapacity(ItemStack talisman, Item storedItem) {
         return getMaxStacks(talisman) * storedItem.getDefaultMaxStackSize();
+    }
+
+    private static void setMaxStacks(ItemStack talisman, int value) {
+        CompoundTag tag = getOrCreateTag(talisman);
+        tag.putInt(KEY_MAX_STACKS, Math.max(1, value));
+        setTag(talisman, tag);
     }
 
     private static void bindItem(ItemStack talisman, Item item) {
