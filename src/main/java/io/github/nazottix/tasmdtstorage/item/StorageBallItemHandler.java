@@ -4,11 +4,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 
-public class TalismanItemHandler implements IItemHandlerModifiable {
-    private final ItemStack talisman;
+public class StorageBallItemHandler implements IItemHandlerModifiable {
+    private final ItemStack storage_ball;
 
-    public TalismanItemHandler(ItemStack talisman) {
-        this.talisman = talisman;
+    public StorageBallItemHandler(ItemStack storage_ball) {
+        this.storage_ball = storage_ball;
     }
 
     @Override
@@ -21,8 +21,8 @@ public class TalismanItemHandler implements IItemHandlerModifiable {
         if (slot != 0) {
             return ItemStack.EMPTY;
         }
-        Item stored = StorageTalismanItem.getStoredItem(talisman);
-        int count = StorageTalismanItem.getStoredCount(talisman);
+        Item stored = StorageBallItem.getStoredItem(storage_ball);
+        int count = StorageBallItem.getStoredCount(storage_ball);
         if (stored == null || count <= 0) {
             return ItemStack.EMPTY;
         }
@@ -36,7 +36,7 @@ public class TalismanItemHandler implements IItemHandlerModifiable {
         }
 
         ItemStack one = stack.copy();
-        int inserted = StorageTalismanItem.insert(talisman, one);
+        int inserted = StorageBallItem.insert(storage_ball, one);
         if (inserted <= 0) {
             return stack;
         }
@@ -44,7 +44,7 @@ public class TalismanItemHandler implements IItemHandlerModifiable {
         ItemStack remainder = stack.copy();
         remainder.shrink(inserted);
         if (simulate) {
-            StorageTalismanItem.extractAmount(talisman, inserted);
+            StorageBallItem.extractAmount(storage_ball, inserted);
         }
         return remainder;
     }
@@ -55,22 +55,22 @@ public class TalismanItemHandler implements IItemHandlerModifiable {
             return ItemStack.EMPTY;
         }
 
-        Item stored = StorageTalismanItem.getStoredItem(talisman);
-        int storedCount = StorageTalismanItem.getStoredCount(talisman);
+        Item stored = StorageBallItem.getStoredItem(storage_ball);
+        int storedCount = StorageBallItem.getStoredCount(storage_ball);
         if (stored == null || storedCount <= 0) {
             return ItemStack.EMPTY;
         }
 
         int extracted = Math.min(amount, storedCount);
         if (!simulate) {
-            StorageTalismanItem.extractAmount(talisman, extracted);
+            StorageBallItem.extractAmount(storage_ball, extracted);
         }
         return new ItemStack(stored, extracted);
     }
 
     @Override
     public int getSlotLimit(int slot) {
-        Item stored = StorageTalismanItem.getStoredItem(talisman);
+        Item stored = StorageBallItem.getStoredItem(storage_ball);
         return stored == null ? 64 : stored.getDefaultMaxStackSize();
     }
 
@@ -79,7 +79,7 @@ public class TalismanItemHandler implements IItemHandlerModifiable {
         if (slot != 0 || stack.isEmpty()) {
             return false;
         }
-        Item stored = StorageTalismanItem.getStoredItem(talisman);
+        Item stored = StorageBallItem.getStoredItem(storage_ball);
         return stored == null || stored == stack.getItem();
     }
 
@@ -88,10 +88,13 @@ public class TalismanItemHandler implements IItemHandlerModifiable {
         if (slot != 0) {
             return;
         }
-        StorageTalismanItem.clearStored(talisman);
+        StorageBallItem.clearStored(storage_ball);
         if (!stack.isEmpty()) {
-            StorageTalismanItem.insert(talisman, stack.copy());
+            StorageBallItem.insert(storage_ball, stack.copy());
         }
     }
 }
+
+
+
 

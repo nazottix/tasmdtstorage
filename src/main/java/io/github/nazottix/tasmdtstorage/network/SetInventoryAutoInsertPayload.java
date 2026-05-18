@@ -1,6 +1,6 @@
 package io.github.nazottix.tasmdtstorage.network;
 
-import io.github.nazottix.tasmdtstorage.item.StorageTalismanItem;
+import io.github.nazottix.tasmdtstorage.item.StorageBallItem;
 import io.github.nazottix.tasmdtstorage.tasmdtstorage;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.ChatFormatting;
@@ -27,10 +27,10 @@ public record SetInventoryAutoInsertPayload(boolean enabled) implements CustomPa
 
     public static void handle(SetInventoryAutoInsertPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (!(context.player() instanceof ServerPlayer player) || !StorageTalismanItem.isHoldingTalisman(player)) {
+            if (!(context.player() instanceof ServerPlayer player) || !StorageBallItem.isHoldingStorageBall(player)) {
                 return;
             }
-            StorageTalismanItem.setInventoryAutoInsertEnabled(player, payload.enabled());
+            StorageBallItem.setInventoryAutoInsertEnabled(player, payload.enabled());
             Component message = Component.translatable(
                     payload.enabled()
                             ? "message.tasmdtstorage.inventory_auto_insert.enabled"
@@ -40,3 +40,5 @@ public record SetInventoryAutoInsertPayload(boolean enabled) implements CustomPa
         });
     }
 }
+
+

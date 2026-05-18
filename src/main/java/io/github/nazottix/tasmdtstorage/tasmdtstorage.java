@@ -1,11 +1,11 @@
 package io.github.nazottix.tasmdtstorage;
 
 import com.mojang.logging.LogUtils;
-import io.github.nazottix.tasmdtstorage.item.StorageTalismanItem;
-import io.github.nazottix.tasmdtstorage.item.TalismanItemHandler;
+import io.github.nazottix.tasmdtstorage.item.StorageBallItem;
+import io.github.nazottix.tasmdtstorage.item.StorageBallItemHandler;
 import io.github.nazottix.tasmdtstorage.network.SetInventoryAutoInsertPayload;
 import io.github.nazottix.tasmdtstorage.network.StorageBlockTransferPayload;
-import io.github.nazottix.tasmdtstorage.recipe.StorageTalismanRecipe;
+import io.github.nazottix.tasmdtstorage.recipe.StorageBallRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -37,17 +37,17 @@ public class tasmdtstorage {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister.create(Registries.RECIPE_SERIALIZER, MODID);
 
-    public static final DeferredItem<Item> STORAGE_TALISMAN_ITEM = ITEMS.register("storage_talisman", () -> new StorageTalismanItem(new Item.Properties()));
+    public static final DeferredItem<Item> STORAGE_BALL_ITEM = ITEMS.register("storage_ball", () -> new StorageBallItem(new Item.Properties()));
 
-    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<StorageTalismanRecipe>> STORAGE_TALISMAN_RECIPE_SERIALIZER =
-            RECIPE_SERIALIZERS.register("storage_talisman", () -> new SimpleCraftingRecipeSerializer<>(StorageTalismanRecipe::new));
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<StorageBallRecipe>> STORAGE_BALL_RECIPE_SERIALIZER =
+            RECIPE_SERIALIZERS.register("storage_ball", () -> new SimpleCraftingRecipeSerializer<>(StorageBallRecipe::new));
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN_TAB = CREATIVE_MODE_TABS.register("main", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.tasmdtstorage"))
             .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> STORAGE_TALISMAN_ITEM.toStack())
+            .icon(() -> STORAGE_BALL_ITEM.toStack())
             .displayItems((parameters, output) -> {
-                output.accept(STORAGE_TALISMAN_ITEM.get());
+                output.accept(STORAGE_BALL_ITEM.get());
                 output.accept(Items.NETHER_STAR);
             })
             .build());
@@ -65,7 +65,7 @@ public class tasmdtstorage {
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            event.accept(STORAGE_TALISMAN_ITEM);
+            event.accept(STORAGE_BALL_ITEM);
         }
     }
 
@@ -86,8 +86,11 @@ public class tasmdtstorage {
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
         event.registerItem(
                 Capabilities.ItemHandler.ITEM,
-                (stack, context) -> new TalismanItemHandler(stack),
-                STORAGE_TALISMAN_ITEM.get()
+                (stack, context) -> new StorageBallItemHandler(stack),
+                STORAGE_BALL_ITEM.get()
         );
     }
 }
+
+
+

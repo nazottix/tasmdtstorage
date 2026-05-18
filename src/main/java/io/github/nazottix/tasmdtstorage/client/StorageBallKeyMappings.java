@@ -10,9 +10,9 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import org.lwjgl.glfw.GLFW;
 
 @EventBusSubscriber(modid = tasmdtstorage.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
-public class TalismanKeyMappings {
+public class StorageBallKeyMappings {
     public static final KeyMapping TOGGLE_TALISMAN_PICKUP = new KeyMapping(
-            "key.tasmdtstorage.toggle_talisman_pickup",
+            "key.tasmdtstorage.toggle_storage_ball_pickup",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_V,
             "key.categories.tasmdtstorage"
@@ -23,3 +23,5 @@ public class TalismanKeyMappings {
         event.register(TOGGLE_TALISMAN_PICKUP);
     }
 }
+
+

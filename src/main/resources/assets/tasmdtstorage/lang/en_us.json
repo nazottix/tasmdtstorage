@@ -1,21 +1,23 @@
 {
   "itemGroup.tasmdtstorage": "TASMDT Storage",
-  "item.tasmdtstorage.storage_talisman": "Storage Talisman",
-  "item.tasmdtstorage.storage_talisman.named": "Storage Talisman (%s)",
-  "item.tasmdtstorage.storage_talisman.unbound": "Unbound",
-  "item.tasmdtstorage.storage_talisman.bound": "Bound: %s",
-  "item.tasmdtstorage.storage_talisman.stored": "Stored: %s / %s",
-  "message.tasmdtstorage.storage_to_talisman": "Moved %s items into talismans",
-  "message.tasmdtstorage.talisman_to_storage": "Moved %s items into storage",
+  "item.tasmdtstorage.storage_ball": "Storage Ball",
+  "item.tasmdtstorage.storage_ball.named": "Storage Ball (%s)",
+  "item.tasmdtstorage.storage_ball.unbound": "Unbound",
+  "item.tasmdtstorage.storage_ball.bound": "Bound: %s",
+  "item.tasmdtstorage.storage_ball.stored": "Stored: %s / %s",
+  "message.tasmdtstorage.storage_to_storage_ball": "Moved %s items into storage_balls",
+  "message.tasmdtstorage.storage_ball_to_storage": "Moved %s items into storage",
   "message.tasmdtstorage.mode.none": "Mode: None",
-  "message.tasmdtstorage.mode.storage_to_talisman": "Mode: Storage -> Talisman",
-  "message.tasmdtstorage.mode.talisman_to_storage": "Mode: Talisman -> Storage",
+  "message.tasmdtstorage.mode.storage_to_storage_ball": "Mode: Storage -> Storage Ball",
+  "message.tasmdtstorage.mode.storage_ball_to_storage": "Mode: Storage Ball -> Storage",
   "message.tasmdtstorage.inventory_auto_insert.enabled": "Inventory auto insert: ON",
   "message.tasmdtstorage.inventory_auto_insert.disabled": "Inventory auto insert: OFF",
   "key.categories.tasmdtstorage": "TASMDT Storage",
-  "key.tasmdtstorage.toggle_talisman_pickup": "Talisman mode key",
+  "key.tasmdtstorage.toggle_storage_ball_pickup": "Storage Ball mode key",
   "config.tasmdtstorage.logDirtBlock": "Log dirt block",
   "config.tasmdtstorage.magicNumber": "Magic number",
   "config.tasmdtstorage.magicNumberIntroduction": "Magic number intro",
   "config.tasmdtstorage.items": "Items"
 }
+
+

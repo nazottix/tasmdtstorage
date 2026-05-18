@@ -1,8 +1,12 @@
 package io.github.nazottix.tasmdtstorage.recipe;
 
-import io.github.nazottix.tasmdtstorage.item.StorageTalismanItem;
+import io.github.nazottix.tasmdtstorage.item.StorageBallItem;
 import io.github.nazottix.tasmdtstorage.tasmdtstorage;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -10,10 +14,14 @@ import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 
-public class StorageTalismanRecipe extends CustomRecipe {
-    public StorageTalismanRecipe(CraftingBookCategory category) {
+public class StorageBallRecipe extends CustomRecipe {
+    public static final String KEY_EXTRACT_ITEM = "extract_item";
+    public static final String KEY_EXTRACT_COUNT = "extract_count";
+
+    public StorageBallRecipe(CraftingBookCategory category) {
         super(category);
     }
 
@@ -24,20 +32,30 @@ public class StorageTalismanRecipe extends CustomRecipe {
 
     @Override
     public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
-        ItemStack talisman = findTalisman(input);
-        if (talisman.isEmpty()) {
+        ItemStack storage_ball = findStorageBall(input);
+        if (storage_ball.isEmpty()) {
             return ItemStack.EMPTY;
         }
 
-        ItemStack result = talisman.copy();
+        ItemStack result = storage_ball.copy();
         result.setCount(1);
 
         Mode mode = getMode(input);
         if (mode == Mode.INSERT) {
-            ItemStack other = findFirstNonTalisman(input);
-            StorageTalismanItem.insert(result, other.copyWithCount(1));
+            ItemStack other = findFirstNonStorageBall(input);
+            StorageBallItem.insert(result, other.copyWithCount(1));
+        } else if (mode == Mode.EXTRACT) {
+            Item stored = StorageBallItem.getStoredItem(result);
+            int extracted = StorageBallItem.extractOneStack(result);
+            if (stored != null && extracted > 0) {
+                CompoundTag tag = result.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+                ResourceLocation id = BuiltInRegistries.ITEM.getKey(stored);
+                tag.putString(KEY_EXTRACT_ITEM, id.toString());
+                tag.putInt(KEY_EXTRACT_COUNT, extracted);
+                result.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+            }
         } else if (mode == Mode.UPGRADE) {
-            StorageTalismanItem.upgrade(result);
+            StorageBallItem.upgrade(result);
         }
 
         return result;
@@ -50,11 +68,11 @@ public class StorageTalismanRecipe extends CustomRecipe {
 
     @Override
     public RecipeSerializer<?> getSerializer() {
-        return tasmdtstorage.STORAGE_TALISMAN_RECIPE_SERIALIZER.get();
+        return tasmdtstorage.STORAGE_BALL_RECIPE_SERIALIZER.get();
     }
 
     private static Mode getMode(CraftingInput input) {
-        int talismanCount = 0;
+        int storage_ballCount = 0;
         int nonEmpty = 0;
         ItemStack other = ItemStack.EMPTY;
 
@@ -64,8 +82,8 @@ public class StorageTalismanRecipe extends CustomRecipe {
                 continue;
             }
             nonEmpty++;
-            if (stack.is(tasmdtstorage.STORAGE_TALISMAN_ITEM.get())) {
-                talismanCount++;
+            if (stack.is(tasmdtstorage.STORAGE_BALL_ITEM.get())) {
+                storage_ballCount++;
             } else {
                 if (!other.isEmpty()) {
                     return Mode.INVALID;
@@ -74,7 +92,7 @@ public class StorageTalismanRecipe extends CustomRecipe {
             }
         }
 
-        if (talismanCount != 1) {
+        if (storage_ballCount != 1) {
             return Mode.INVALID;
         }
 
@@ -90,16 +108,16 @@ public class StorageTalismanRecipe extends CustomRecipe {
             return Mode.UPGRADE;
         }
 
-        if (other.is(tasmdtstorage.STORAGE_TALISMAN_ITEM.get())) {
+        if (other.is(tasmdtstorage.STORAGE_BALL_ITEM.get())) {
             return Mode.INVALID;
         }
 
-        ItemStack talisman = findTalisman(input);
-        if (talisman.isEmpty()) {
+        ItemStack storage_ball = findStorageBall(input);
+        if (storage_ball.isEmpty()) {
             return Mode.INVALID;
         }
 
-        Item stored = StorageTalismanItem.getStoredItem(talisman);
+        Item stored = StorageBallItem.getStoredItem(storage_ball);
         if (stored == null) {
             return Mode.INSERT;
         }
@@ -107,20 +125,20 @@ public class StorageTalismanRecipe extends CustomRecipe {
         return stored == other.getItem() ? Mode.INSERT : Mode.INVALID;
     }
 
-    private static ItemStack findTalisman(CraftingInput input) {
+    private static ItemStack findStorageBall(CraftingInput input) {
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getItem(i);
-            if (stack.is(tasmdtstorage.STORAGE_TALISMAN_ITEM.get())) {
+            if (stack.is(tasmdtstorage.STORAGE_BALL_ITEM.get())) {
                 return stack;
             }
         }
         return ItemStack.EMPTY;
     }
 
-    private static ItemStack findFirstNonTalisman(CraftingInput input) {
+    private static ItemStack findFirstNonStorageBall(CraftingInput input) {
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getItem(i);
-            if (!stack.isEmpty() && !stack.is(tasmdtstorage.STORAGE_TALISMAN_ITEM.get())) {
+            if (!stack.isEmpty() && !stack.is(tasmdtstorage.STORAGE_BALL_ITEM.get())) {
                 return stack;
             }
         }
@@ -134,3 +152,6 @@ public class StorageTalismanRecipe extends CustomRecipe {
         INVALID
     }
 }
+
+
+

@@ -14,28 +14,40 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
+import net.neoforged.neoforge.items.IItemHandler;
 
-public class StorageTalismanItem extends Item {
+public class StorageBallItem extends Item {
     private static final String KEY_STORED_ITEM = "stored_item";
     private static final String KEY_STORED_COUNT = "stored_count";
     private static final String KEY_MAX_STACKS = "max_stacks";
     private static final String KEY_AUTO_INSERT_ENABLED = "tasmdtstorage_inventory_auto_insert_enabled";
+    private static final String KEY_AUTO_INSERT_GLINT = "auto_insert_glint";
 
     public static final int DEFAULT_MAX_STACKS = 32;
     public static final int UPGRADE_STACKS = 16;
 
-    public StorageTalismanItem(Properties properties) {
+    public StorageBallItem(Properties properties) {
         super(properties.stacksTo(1));
     }
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, net.minecraft.world.entity.Entity entity, int slotId, boolean isSelected) {
-        if (level.isClientSide || !(entity instanceof Player player) || !isInventoryAutoInsertEnabled(player)) {
+        if (!(entity instanceof Player player)) {
+            return;
+        }
+
+        if (!level.isClientSide) {
+            setAutoInsertGlint(stack, isInventoryAutoInsertEnabled(player));
+        }
+
+        if (level.isClientSide || !isInventoryAutoInsertEnabled(player)) {
             return;
         }
 
@@ -70,15 +82,34 @@ public class StorageTalismanItem extends Item {
         if (stored == null) {
             return super.getName(stack);
         }
-        return Component.translatable("item.tasmdtstorage.storage_talisman.named", stored.getDescription());
+        return Component.translatable("item.tasmdtstorage.storage_ball.named", stored.getDescription());
+    }
+
+    @Override
+    public boolean isFoil(ItemStack stack) {
+        return isAutoInsertGlint(stack) || super.isFoil(stack);
     }
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        ItemStack talisman = context.getItemInHand();
-        Item storedItem = getStoredItem(talisman);
+        ItemStack storage_ball = context.getItemInHand();
+        Item storedItem = getStoredItem(storage_ball);
         Player player = context.getPlayer();
-        if (storedItem == null || getStoredCount(talisman) <= 0 || player == null) {
+        if (player == null) {
+            return InteractionResult.PASS;
+        }
+
+        if (storedItem == null && player.isShiftKeyDown()) {
+            Block clickedBlock = context.getLevel().getBlockState(context.getClickedPos()).getBlock();
+            Item blockItem = clickedBlock.asItem();
+            if (blockItem != Items.AIR) {
+                bindItem(storage_ball, blockItem);
+                return InteractionResult.sidedSuccess(context.getLevel().isClientSide);
+            }
+            return InteractionResult.PASS;
+        }
+
+        if (storedItem == null || getStoredCount(storage_ball) <= 0) {
             return InteractionResult.PASS;
         }
 
@@ -88,23 +119,23 @@ public class StorageTalismanItem extends Item {
         InteractionResult result = storedItem.useOn(proxyContext);
         int consumed = 1 - proxyStack.getCount();
         if (result.consumesAction() && consumed > 0) {
-            setStoredCount(talisman, getStoredCount(talisman) - consumed);
+            setStoredCount(storage_ball, getStoredCount(storage_ball) - consumed);
         }
         return result;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
-        ItemStack talisman = player.getItemInHand(usedHand);
-        Item storedItem = getStoredItem(talisman);
-        if (storedItem == null || getStoredCount(talisman) <= 0) {
-            return InteractionResultHolder.pass(talisman);
+        ItemStack storage_ball = player.getItemInHand(usedHand);
+        Item storedItem = getStoredItem(storage_ball);
+        if (storedItem == null || getStoredCount(storage_ball) <= 0) {
+            return InteractionResultHolder.pass(storage_ball);
         }
 
         ItemStack proxyStack = new ItemStack(storedItem, 1);
         if (proxyStack.getFoodProperties(player) != null) {
             if (!player.canEat(proxyStack.getFoodProperties(player).canAlwaysEat())) {
-                return InteractionResultHolder.fail(talisman);
+                return InteractionResultHolder.fail(storage_ball);
             }
             return ItemUtils.startUsingInstantly(level, player, usedHand);
         }
@@ -112,15 +143,15 @@ public class StorageTalismanItem extends Item {
         InteractionResultHolder<ItemStack> result = storedItem.use(level, player, usedHand);
         int consumed = 1 - result.getObject().getCount();
         if (!level.isClientSide && result.getResult().consumesAction() && consumed > 0) {
-            setStoredCount(talisman, getStoredCount(talisman) - consumed);
+            setStoredCount(storage_ball, getStoredCount(storage_ball) - consumed);
             if (!result.getObject().isEmpty() && result.getObject().getItem() != storedItem && !player.getInventory().add(result.getObject())) {
                 player.drop(result.getObject(), false);
             }
         }
 
         return result.getResult().consumesAction()
-                ? new InteractionResultHolder<>(result.getResult(), talisman)
-                : InteractionResultHolder.pass(talisman);
+                ? new InteractionResultHolder<>(result.getResult(), storage_ball)
+                : InteractionResultHolder.pass(storage_ball);
     }
 
     @Override
@@ -169,18 +200,18 @@ public class StorageTalismanItem extends Item {
         return stack;
     }
 
-    public static boolean hasAnyTalisman(Player player) {
+    public static boolean hasAnyStorageBall(Player player) {
         for (ItemStack stack : player.getInventory().items) {
-            if (!stack.isEmpty() && stack.getItem() instanceof StorageTalismanItem) {
+            if (!stack.isEmpty() && stack.getItem() instanceof StorageBallItem) {
                 return true;
             }
         }
         return false;
     }
 
-    public static boolean isHoldingTalisman(Player player) {
-        return player.getMainHandItem().getItem() instanceof StorageTalismanItem
-                || player.getOffhandItem().getItem() instanceof StorageTalismanItem;
+    public static boolean isHoldingStorageBall(Player player) {
+        return player.getMainHandItem().getItem() instanceof StorageBallItem
+                || player.getOffhandItem().getItem() instanceof StorageBallItem;
     }
 
     public static boolean isInventoryAutoInsertEnabled(Player player) {
@@ -194,14 +225,14 @@ public class StorageTalismanItem extends Item {
         player.getPersistentData().putBoolean(KEY_AUTO_INSERT_ENABLED, enabled);
     }
 
-    public static int insertIntoAnyTalisman(Player player, ItemStack source) {
+    public static int insertIntoAnyStorageBall(Player player, ItemStack source) {
         if (source.isEmpty()) {
             return 0;
         }
 
         int total = 0;
         for (ItemStack candidate : player.getInventory().items) {
-            if (!candidate.isEmpty() && candidate.getItem() instanceof StorageTalismanItem) {
+            if (!candidate.isEmpty() && candidate.getItem() instanceof StorageBallItem) {
                 int inserted = insert(candidate, source);
                 if (inserted > 0) {
                     source.shrink(inserted);
@@ -215,41 +246,73 @@ public class StorageTalismanItem extends Item {
         return total;
     }
 
-    public static int extractFromAnyTalismanToContainer(Player player, Container container) {
+    public static int extractFromAnyStorageBallToContainer(Player player, Container container) {
         int movedTotal = 0;
-        for (ItemStack talisman : player.getInventory().items) {
-            if (talisman.isEmpty() || !(talisman.getItem() instanceof StorageTalismanItem)) {
+        for (ItemStack storage_ball : player.getInventory().items) {
+            if (storage_ball.isEmpty() || !(storage_ball.getItem() instanceof StorageBallItem)) {
                 continue;
             }
 
-            Item stored = getStoredItem(talisman);
-            int storedCount = getStoredCount(talisman);
+            Item stored = getStoredItem(storage_ball);
+            int storedCount = getStoredCount(storage_ball);
             if (stored == null || storedCount <= 0) {
                 continue;
             }
 
             int moved = moveItemToContainer(container, stored, storedCount);
             if (moved > 0) {
-                setStoredCount(talisman, storedCount - moved);
+                setStoredCount(storage_ball, storedCount - moved);
                 movedTotal += moved;
             }
         }
         return movedTotal;
     }
 
-    public static int extractAmount(ItemStack talisman, int amount) {
-        int extracted = Math.min(Math.max(0, amount), getStoredCount(talisman));
+    public static int extractFromAnyStorageBallToItemHandler(Player player, IItemHandler handler) {
+        int movedTotal = 0;
+        for (ItemStack storage_ball : player.getInventory().items) {
+            if (storage_ball.isEmpty() || !(storage_ball.getItem() instanceof StorageBallItem)) {
+                continue;
+            }
+
+            Item stored = getStoredItem(storage_ball);
+            int storedCount = getStoredCount(storage_ball);
+            if (stored == null || storedCount <= 0) {
+                continue;
+            }
+
+            int moved = moveItemToHandler(handler, stored, storedCount);
+            if (moved > 0) {
+                setStoredCount(storage_ball, storedCount - moved);
+                movedTotal += moved;
+            }
+        }
+        return movedTotal;
+    }
+
+    public static int extractAmount(ItemStack storage_ball, int amount) {
+        int extracted = Math.min(Math.max(0, amount), getStoredCount(storage_ball));
         if (extracted > 0) {
-            setStoredCount(talisman, getStoredCount(talisman) - extracted);
+            setStoredCount(storage_ball, getStoredCount(storage_ball) - extracted);
         }
         return extracted;
     }
 
-    public static void clearStored(ItemStack talisman) {
-        CompoundTag tag = getOrCreateTag(talisman);
+    public static void clearStored(ItemStack storage_ball) {
+        CompoundTag tag = getOrCreateTag(storage_ball);
         tag.remove(KEY_STORED_ITEM);
         tag.putInt(KEY_STORED_COUNT, 0);
-        setTag(talisman, tag);
+        setTag(storage_ball, tag);
+    }
+
+    public static void setAutoInsertGlint(ItemStack storage_ball, boolean enabled) {
+        CompoundTag tag = getOrCreateTag(storage_ball);
+        tag.putBoolean(KEY_AUTO_INSERT_GLINT, enabled);
+        setTag(storage_ball, tag);
+    }
+
+    public static boolean isAutoInsertGlint(ItemStack storage_ball) {
+        return getTag(storage_ball).getBoolean(KEY_AUTO_INSERT_GLINT);
     }
 
     private static int moveItemToContainer(Container container, Item item, int amount) {
@@ -289,8 +352,27 @@ public class StorageTalismanItem extends Item {
         return amount - remaining;
     }
 
-    public static Item getStoredItem(ItemStack talisman) {
-        CompoundTag tag = getTag(talisman);
+    private static int moveItemToHandler(IItemHandler handler, Item item, int amount) {
+        int remaining = amount;
+        while (remaining > 0) {
+            int move = Math.min(remaining, item.getDefaultMaxStackSize());
+            ItemStack toInsert = new ItemStack(item, move);
+
+            for (int slot = 0; slot < handler.getSlots() && !toInsert.isEmpty(); slot++) {
+                toInsert = handler.insertItem(slot, toInsert, false);
+            }
+
+            int inserted = move - toInsert.getCount();
+            if (inserted <= 0) {
+                break;
+            }
+            remaining -= inserted;
+        }
+        return amount - remaining;
+    }
+
+    public static Item getStoredItem(ItemStack storage_ball) {
+        CompoundTag tag = getTag(storage_ball);
         if (!tag.contains(KEY_STORED_ITEM)) {
             return null;
         }
@@ -303,41 +385,41 @@ public class StorageTalismanItem extends Item {
         return BuiltInRegistries.ITEM.getOptional(id).orElse(null);
     }
 
-    public static int getStoredCount(ItemStack talisman) {
-        return getTag(talisman).getInt(KEY_STORED_COUNT);
+    public static int getStoredCount(ItemStack storage_ball) {
+        return getTag(storage_ball).getInt(KEY_STORED_COUNT);
     }
 
-    public static int getMaxStacks(ItemStack talisman) {
-        CompoundTag tag = getTag(talisman);
+    public static int getMaxStacks(ItemStack storage_ball) {
+        CompoundTag tag = getTag(storage_ball);
         return Math.max(1, tag.contains(KEY_MAX_STACKS) ? tag.getInt(KEY_MAX_STACKS) : DEFAULT_MAX_STACKS);
     }
 
-    public static void upgrade(ItemStack talisman) {
-        setMaxStacks(talisman, getMaxStacks(talisman) + UPGRADE_STACKS);
+    public static void upgrade(ItemStack storage_ball) {
+        setMaxStacks(storage_ball, getMaxStacks(storage_ball) + UPGRADE_STACKS);
     }
 
-    public static int extractOneStack(ItemStack talisman) {
-        Item stored = getStoredItem(talisman);
+    public static int extractOneStack(ItemStack storage_ball) {
+        Item stored = getStoredItem(storage_ball);
         if (stored == null) {
             return 0;
         }
 
         int maxPerStack = stored.getDefaultMaxStackSize();
-        int extracted = Math.min(maxPerStack, getStoredCount(talisman));
-        setStoredCount(talisman, getStoredCount(talisman) - extracted);
+        int extracted = Math.min(maxPerStack, getStoredCount(storage_ball));
+        setStoredCount(storage_ball, getStoredCount(storage_ball) - extracted);
         return extracted;
     }
 
-    public static int insert(ItemStack talisman, ItemStack source) {
+    public static int insert(ItemStack storage_ball, ItemStack source) {
         if (source.isEmpty()) {
             return 0;
         }
 
         Item sourceItem = source.getItem();
-        Item storedItem = getStoredItem(talisman);
+        Item storedItem = getStoredItem(storage_ball);
 
         if (storedItem == null) {
-            bindItem(talisman, sourceItem);
+            bindItem(storage_ball, sourceItem);
             storedItem = sourceItem;
         }
 
@@ -345,44 +427,48 @@ public class StorageTalismanItem extends Item {
             return 0;
         }
 
-        int free = getCapacity(talisman, storedItem) - getStoredCount(talisman);
+        int free = getCapacity(storage_ball, storedItem) - getStoredCount(storage_ball);
         if (free <= 0) {
             return 0;
         }
 
         int inserted = Math.min(free, source.getCount());
-        setStoredCount(talisman, getStoredCount(talisman) + inserted);
+        setStoredCount(storage_ball, getStoredCount(storage_ball) + inserted);
         return inserted;
     }
 
-    public static boolean isFull(ItemStack talisman, Item storedItem) {
-        return getStoredCount(talisman) >= getCapacity(talisman, storedItem);
+    public static boolean isFull(ItemStack storage_ball, Item storedItem) {
+        return getStoredCount(storage_ball) >= getCapacity(storage_ball, storedItem);
     }
 
-    public static int getCapacity(ItemStack talisman, Item storedItem) {
-        return getMaxStacks(talisman) * storedItem.getDefaultMaxStackSize();
+    public static int getCapacity(ItemStack storage_ball, Item storedItem) {
+        return Integer.MAX_VALUE;
     }
 
-    private static void setMaxStacks(ItemStack talisman, int value) {
-        CompoundTag tag = getOrCreateTag(talisman);
+    private static void setMaxStacks(ItemStack storage_ball, int value) {
+        CompoundTag tag = getOrCreateTag(storage_ball);
         tag.putInt(KEY_MAX_STACKS, Math.max(1, value));
-        setTag(talisman, tag);
+        setTag(storage_ball, tag);
     }
 
-    private static void bindItem(ItemStack talisman, Item item) {
-        CompoundTag tag = getOrCreateTag(talisman);
+    private static void bindItem(ItemStack storage_ball, Item item) {
+        CompoundTag tag = getOrCreateTag(storage_ball);
         ResourceLocation key = BuiltInRegistries.ITEM.getKey(item);
         tag.putString(KEY_STORED_ITEM, key.toString());
         if (!tag.contains(KEY_MAX_STACKS)) {
             tag.putInt(KEY_MAX_STACKS, DEFAULT_MAX_STACKS);
         }
-        setTag(talisman, tag);
+        setTag(storage_ball, tag);
     }
 
-    private static void setStoredCount(ItemStack talisman, int newCount) {
-        CompoundTag tag = getOrCreateTag(talisman);
-        tag.putInt(KEY_STORED_COUNT, Math.max(0, newCount));
-        setTag(talisman, tag);
+    private static void setStoredCount(ItemStack storage_ball, int newCount) {
+        CompoundTag tag = getOrCreateTag(storage_ball);
+        int count = Math.max(0, newCount);
+        tag.putInt(KEY_STORED_COUNT, count);
+        if (count <= 0) {
+            tag.remove(KEY_STORED_ITEM);
+        }
+        setTag(storage_ball, tag);
     }
 
     private static CompoundTag getTag(ItemStack stack) {
@@ -397,3 +483,7 @@ public class StorageTalismanItem extends Item {
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
     }
 }
+
+
+
+
